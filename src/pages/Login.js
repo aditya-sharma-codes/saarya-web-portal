@@ -39,7 +39,8 @@ export default function Login() {
 
       const data = userDoc.data();
       if (role === "admin" && data.role === "admin") {
-        navigate("/admin-dashboard");
+        navigate("/dashboard");
+
       } else if (role === "user" && data.role === "user") {
         navigate("/user-dashboard");
       } else {
@@ -72,7 +73,7 @@ export default function Login() {
           }}
         >
           <Avatar
-            src="/logo192.png" // Replace with actual logo
+            src="/logo192.png" // Replace with your logo path
             alt="SAARYA Logo"
             sx={{
               width: 70,
@@ -81,17 +82,10 @@ export default function Login() {
               mb: 2
             }}
           />
-          <Typography
-            variant="h5"
-            gutterBottom
-            sx={{ fontWeight: "bold", color: "#333" }}
-          >
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: "bold", color: "#333" }}>
             SAARYA Cable Network
           </Typography>
-          <Typography
-            variant="body2"
-            sx={{ mb: 3, color: "#666" }}
-          >
+          <Typography variant="body2" sx={{ mb: 3, color: "#666" }}>
             Sign in to continue
           </Typography>
 
@@ -113,9 +107,7 @@ export default function Login() {
               sx={{
                 "& .MuiOutlinedInput-root": {
                   borderRadius: "12px",
-                  "&.Mui-focused fieldset": {
-                    borderColor: "#4facfe"
-                  }
+                  "&.Mui-focused fieldset": { borderColor: "#4facfe" }
                 }
               }}
             >
@@ -135,9 +127,7 @@ export default function Login() {
               sx={{
                 "& .MuiOutlinedInput-root": {
                   borderRadius: "12px",
-                  "&.Mui-focused fieldset": {
-                    borderColor: "#4facfe"
-                  }
+                  "&.Mui-focused fieldset": { borderColor: "#4facfe" }
                 }
               }}
             />
@@ -154,9 +144,7 @@ export default function Login() {
               sx={{
                 "& .MuiOutlinedInput-root": {
                   borderRadius: "12px",
-                  "&.Mui-focused fieldset": {
-                    borderColor: "#4facfe"
-                  }
+                  "&.Mui-focused fieldset": { borderColor: "#4facfe" }
                 }
               }}
             />
