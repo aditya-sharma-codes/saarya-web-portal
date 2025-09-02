@@ -36,3 +36,59 @@
     transform: rotate(360deg);
   }
 }
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 0%;
+  }
+  25% {
+    background-position: 100% 50%;
+  }
+  50% {
+    background-position: 50% 100%;
+  }
+  75% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+@keyframes floatUpDown {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+.aurora-bg {
+  position: relative;
+  width: 100%;
+  min-height: 90vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: radial-gradient(circle at 20% 20%, #667eea 0%, transparent 60%),
+              radial-gradient(circle at 80% 30%, #764ba2 0%, transparent 70%),
+              radial-gradient(circle at 50% 80%, #4facfe 0%, transparent 60%),
+              #0f0c29;
+  background-size: 200% 200%;
+  animation: auroraMove 12s ease-in-out infinite alternate;
+}
+
+@keyframes auroraMove {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 50% 100%;
+  }
+}
+
+

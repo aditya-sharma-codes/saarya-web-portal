@@ -1,63 +1,79 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { db, auth } from "../firebase";
 import {
   collection,
-  addDoc,
   getDocs,
-  orderBy,
-  query,
+  addDoc,
   deleteDoc,
-  doc,
   updateDoc,
-  serverTimestamp
+  doc
 } from "firebase/firestore";
-import { signOut } from "firebase/auth";
-import { useNavigate } from "react-router-dom";
 import {
-  AppBar,
-  Toolbar,
-  Typography,
-  Button,
   Box,
-  Container,
+  Typography,
+  Card,
+  CardContent,
+  Grid,
   TextField,
-  Paper,
+  Button,
   List,
   ListItem,
   ListItemText,
   Divider,
-  IconButton,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle
+  Avatar,
+  Paper,
+  Stack,
+  IconButton
 } from "@mui/material";
-import { Delete, Edit } from "@mui/icons-material";
+import { motion } from "framer-motion";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 
 export default function AdminDashboard() {
   const [notices, setNotices] = useState([]);
   const [newNotice, setNewNotice] = useState("");
-  const [editId, setEditId] = useState(null);
-  const [editText, setEditText] = useState("");
-  const [openEdit, setOpenEdit] = useState(false);
-  const navigate = useNavigate();
+  const [editNoticeId, setEditNoticeId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const getNotices = async () => {
-    const q = query(collection(db, "notices"), orderBy("createdAt", "desc"));
-    const snapshot = await getDocs(q);
-    setNotices(snapshot.docs.map(docItem => ({ id: docItem.id, ...docItem.data() })));
+  // Demo data for users, payments, requests
+  const users = [
+    { name: "Aditya", email: "aditya@test.com", role: "user", plan: "Basic", status: "Active" },
+    { name: "Neha", email: "neha@test.com", role: "user", plan: "Premium", status: "Suspended" },
+    { name: "Rohan", email: "rohan@test.com", role: "admin", plan: "-", status: "Active" }
+  ];
+
+  const connectionRequests = [
+    { name: "Suresh", email: "suresh@gmail.com", plan: "Basic Plan", status: "Pending" },
+    { name: "Aditi", email: "aditi@gmail.com", plan: "Premium Plan", status: "Approved" }
+  ];
+
+  const payments = [
+    { user: "Aditya", date: "01 Aug 2025", amount: "₹500", mode: "UPI" },
+    { user: "Neha", date: "01 Jul 2025", amount: "₹700", mode: "Card" }
+  ];
+
+  // Stats
+  const stats = {
+    totalUsers: users.length,
+    activeUsers: users.filter(u => u.status === "Active").length,
+    pendingRequests: connectionRequests.filter(r => r.status === "Pending").length,
+    revenue: payments.reduce((acc, p) => acc + parseInt(p.amount.replace("₹", "")), 0)
   };
 
-  useEffect(() => {
-    getNotices();
-  }, []);
+  const getNotices = async () => {
+    const snapshot = await getDocs(collection(db, "notices"));
+    setNotices(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    setLoading(false);
+  };
 
-  const addNotice = async () => {
+  const addOrUpdateNotice = async () => {
     if (newNotice.trim()) {
-      await addDoc(collection(db, "notices"), {
-        text: newNotice,
-        createdAt: serverTimestamp()
-      });
+      if (editNoticeId) {
+        await updateDoc(doc(db, "notices", editNoticeId), { text: newNotice });
+        setEditNoticeId(null);
+      } else {
+        await addDoc(collection(db, "notices"), { text: newNotice, createdAt: new Date() });
+      }
       setNewNotice("");
       getNotices();
     }
@@ -68,129 +84,214 @@ export default function AdminDashboard() {
     getNotices();
   };
 
-  const handleEditOpen = (id, text) => {
-    setEditId(id);
-    setEditText(text);
-    setOpenEdit(true);
-  };
+  useEffect(() => {
+    getNotices();
+  }, []);
 
-  const handleEditSave = async () => {
-    if (editText.trim()) {
-      await updateDoc(doc(db, "notices", editId), { text: editText });
-      setOpenEdit(false);
-      getNotices();
-    }
-  };
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    navigate("/");
-  };
+  // Motion variant
+  const MotionCard = ({ children }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 200, damping: 15 }}
+    >
+      <Card
+        elevation={4}
+        sx={{
+          borderRadius: 4,
+          transition: "box-shadow 0.3s ease",
+          "&:hover": {
+            boxShadow: "0px 10px 30px rgba(0,0,0,0.25)"
+          }
+        }}
+      >
+        <CardContent>{children}</CardContent>
+      </Card>
+    </motion.div>
+  );
 
   return (
-    <Box sx={{ backgroundColor: "#f4f6f8", minHeight: "100vh" }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #ece9e6 0%, #ffffff 100%)",
+        p: { xs: 2, md: 4 }
+      }}
+    >
       {/* Header */}
-      <AppBar position="static" sx={{ background: "linear-gradient(90deg, #4facfe, #00f2fe)" }}>
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Admin Dashboard
-          </Typography>
-          <Button color="inherit" onClick={handleLogout}>
-            Logout
-          </Button>
-        </Toolbar>
-      </AppBar>
+      <Paper
+        elevation={6}
+        sx={{
+          p: 4,
+          mb: 5,
+          borderRadius: 4,
+          textAlign: "center",
+          background: "linear-gradient(135deg, #667eea, #764ba2)",
+          color: "white",
+          boxShadow: "0px 8px 20px rgba(0,0,0,0.2)"
+        }}
+      >
+        <Avatar
+          sx={{
+            bgcolor: "white",
+            color: "#667eea",
+            width: 90,
+            height: 90,
+            fontSize: "2.5rem",
+            mx: "auto",
+            mb: 2,
+            fontWeight: "bold"
+          }}
+        >
+          A
+        </Avatar>
+        <Typography variant="h4" fontWeight="bold">
+          Admin Dashboard
+        </Typography>
+        <Typography variant="subtitle1" sx={{ opacity: 0.9 }}>
+          Manage users, notices, payments & requests 📊
+        </Typography>
+      </Paper>
 
-      {/* Content */}
-      <Container maxWidth="md" sx={{ mt: 4 }}>
-        <Paper sx={{ p: 3, borderRadius: 3, boxShadow: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Add New Notice
-          </Typography>
-          <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-            <TextField
-              label="Enter notice"
-              value={newNotice}
-              onChange={(e) => setNewNotice(e.target.value)}
-              variant="outlined"
-              fullWidth
-            />
-            <Button
-              variant="contained"
-              onClick={addNotice}
-              sx={{
-                background: "linear-gradient(90deg, #4facfe, #00f2fe)",
-                "&:hover": { background: "linear-gradient(90deg, #00f2fe, #4facfe)" }
-              }}
-            >
-              Add
-            </Button>
-          </Box>
+      {/* Stats */}
+      <Grid container spacing={4} mb={4}>
+        <Grid item xs={12} md={3}>
+          <MotionCard>
+            <Typography variant="h6">👥 Total Users</Typography>
+            <Typography variant="h4" fontWeight="bold">{stats.totalUsers}</Typography>
+          </MotionCard>
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <MotionCard>
+            <Typography variant="h6">✅ Active Users</Typography>
+            <Typography variant="h4" fontWeight="bold">{stats.activeUsers}</Typography>
+          </MotionCard>
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <MotionCard>
+            <Typography variant="h6">📩 Pending Requests</Typography>
+            <Typography variant="h4" fontWeight="bold">{stats.pendingRequests}</Typography>
+          </MotionCard>
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <MotionCard>
+            <Typography variant="h6">💰 Revenue</Typography>
+            <Typography variant="h4" fontWeight="bold">₹{stats.revenue}</Typography>
+          </MotionCard>
+        </Grid>
+      </Grid>
 
-          <Typography variant="h6" gutterBottom>
-            All Notices
-          </Typography>
-          <List>
-            {notices.length > 0 ? (
-              notices.map((n) => (
+      {/* Main Grid */}
+      <Grid container spacing={4}>
+        {/* Notices */}
+        <Grid item xs={12} md={6}>
+          <MotionCard>
+            <Typography variant="h6" fontWeight="bold" sx={{ color: "#667eea" }}>
+              📢 Manage Notices
+            </Typography>
+            <Stack direction="row" spacing={2} my={2}>
+              <TextField
+                fullWidth
+                placeholder="Enter notice"
+                value={newNotice}
+                onChange={(e) => setNewNotice(e.target.value)}
+              />
+              <Button variant="contained" onClick={addOrUpdateNotice}>
+                {editNoticeId ? "Update" : "Add"}
+              </Button>
+            </Stack>
+            <List>
+              {notices.map((n) => (
                 <React.Fragment key={n.id}>
                   <ListItem
                     secondaryAction={
                       <>
-                        <IconButton color="primary" onClick={() => handleEditOpen(n.id, n.text)}>
-                          <Edit />
+                        <IconButton onClick={() => { setNewNotice(n.text); setEditNoticeId(n.id); }}>
+                          <EditIcon />
                         </IconButton>
-                        <IconButton color="error" onClick={() => deleteNotice(n.id)}>
-                          <Delete />
+                        <IconButton onClick={() => deleteNotice(n.id)}>
+                          <DeleteIcon />
                         </IconButton>
                       </>
                     }
                   >
+                    <ListItemText primary={n.text} />
+                  </ListItem>
+                  <Divider />
+                </React.Fragment>
+              ))}
+            </List>
+          </MotionCard>
+        </Grid>
+
+        {/* Users */}
+        <Grid item xs={12} md={6}>
+          <MotionCard>
+            <Typography variant="h6" fontWeight="bold" sx={{ color: "#667eea" }}>
+              👥 Users
+            </Typography>
+            <List>
+              {users.map((u, idx) => (
+                <React.Fragment key={idx}>
+                  <ListItem>
                     <ListItemText
-                      primary={n.text}
-                      secondary={
-                        n.createdAt?.toDate
-                          ? new Date(n.createdAt.toDate()).toLocaleString()
-                          : "Loading..."
-                      }
+                      primary={`${u.name} (${u.role})`}
+                      secondary={`${u.email} | ${u.plan} | ${u.status}`}
                     />
                   </ListItem>
                   <Divider />
                 </React.Fragment>
-              ))
-            ) : (
-              <Typography color="text.secondary">No notices found</Typography>
-            )}
-          </List>
-        </Paper>
-      </Container>
+              ))}
+            </List>
+          </MotionCard>
+        </Grid>
 
-      {/* Edit Dialog */}
-      <Dialog open={openEdit} onClose={() => setOpenEdit(false)}>
-        <DialogTitle>Edit Notice</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            variant="outlined"
-            value={editText}
-            onChange={(e) => setEditText(e.target.value)}
-            sx={{ mt: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={handleEditSave}
-            sx={{
-              background: "linear-gradient(90deg, #4facfe, #00f2fe)",
-              "&:hover": { background: "linear-gradient(90deg, #00f2fe, #4facfe)" }
-            }}
-          >
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
+        {/* Connection Requests */}
+        <Grid item xs={12} md={6}>
+          <MotionCard>
+            <Typography variant="h6" fontWeight="bold" sx={{ color: "#667eea" }}>
+              📩 Connection Requests
+            </Typography>
+            <List>
+              {connectionRequests.map((r, idx) => (
+                <React.Fragment key={idx}>
+                  <ListItem>
+                    <ListItemText
+                      primary={`${r.name} - ${r.plan}`}
+                      secondary={`${r.email} | Status: ${r.status}`}
+                    />
+                  </ListItem>
+                  <Divider />
+                </React.Fragment>
+              ))}
+            </List>
+          </MotionCard>
+        </Grid>
+
+        {/* Payments */}
+        <Grid item xs={12} md={6}>
+          <MotionCard>
+            <Typography variant="h6" fontWeight="bold" sx={{ color: "#667eea" }}>
+              💳 Payments
+            </Typography>
+            <List>
+              {payments.map((p, idx) => (
+                <React.Fragment key={idx}>
+                  <ListItem>
+                    <ListItemText
+                      primary={`${p.user} - ${p.amount}`}
+                      secondary={`${p.date} | Mode: ${p.mode}`}
+                    />
+                  </ListItem>
+                  <Divider />
+                </React.Fragment>
+              ))}
+            </List>
+          </MotionCard>
+        </Grid>
+      </Grid>
     </Box>
   );
 }
