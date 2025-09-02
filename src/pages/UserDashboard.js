@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
+import { signOut } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
 import {
   collection,
   getDocs,
@@ -38,6 +40,8 @@ export default function UserDashboard() {
 
   const [openTicket, setOpenTicket] = useState(false);
   const [ticketDesc, setTicketDesc] = useState("");
+
+  const navigate = useNavigate();
 
   // Demo values
   const todayUsage = 1.5; // GB
@@ -81,6 +85,11 @@ export default function UserDashboard() {
     alert("Ticket submitted successfully!");
   };
 
+  const handleLogout = async () => {
+    await signOut(auth);
+    navigate("/login");
+  };
+
   useEffect(() => {
     getNotices();
     getUserData();
@@ -120,7 +129,7 @@ export default function UserDashboard() {
       sx={{
         minHeight: "100vh",
         background: "linear-gradient(135deg, #eef2f3 0%, #cfd9df 100%)",
-        p: { xs: 2, md: 4 },
+        p: { xs: 2, md: 4 }
       }}
     >
       {/* Header */}
@@ -137,7 +146,7 @@ export default function UserDashboard() {
             textAlign: "center",
             background: "linear-gradient(135deg, #4facfe, #00f2fe)",
             color: "white",
-            boxShadow: "0px 8px 20px rgba(0,0,0,0.2)",
+            boxShadow: "0px 8px 20px rgba(0,0,0,0.2)"
           }}
         >
           <Avatar
@@ -150,7 +159,7 @@ export default function UserDashboard() {
               mx: "auto",
               mb: 2,
               fontWeight: "bold",
-              boxShadow: "0px 4px 12px rgba(0,0,0,0.2)",
+              boxShadow: "0px 4px 12px rgba(0,0,0,0.2)"
             }}
           >
             {auth.currentUser?.email[0].toUpperCase()}
@@ -236,24 +245,18 @@ export default function UserDashboard() {
                 fontSize: "1rem",
                 boxShadow: "0px 4px 10px rgba(0,0,0,0.2)",
                 "&:hover": {
-                  background: "linear-gradient(90deg, #00f2fe, #4facfe)",
-                },
+                  background: "linear-gradient(90deg, #00f2fe, #4facfe)"
+                }
               }}
               onClick={() => alert("Payment Gateway Integration Pending")}
             >
               Pay Now
             </Button>
-            <Typography
-              variant="subtitle2"
-              sx={{ mt: 2, color: "text.secondary" }}
-            >
-              Last Payment: 01 Aug 2025 (UPI)
-            </Typography>
           </MotionCard>
         </Grid>
 
-        {/* Usage Info */}
-        <Grid item xs={12}>
+        {/* Data Usage */}
+        <Grid item xs={12} md={6}>
           <MotionCard>
             <Typography
               variant="h6"
@@ -263,61 +266,32 @@ export default function UserDashboard() {
             >
               📊 Data Usage
             </Typography>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={3}>
-                <Typography variant="body1">
-                  Today’s Usage:{" "}
-                  <strong>{todayUsage} GB</strong>
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={3}>
-                <Typography variant="body1">
-                  Monthly Usage:{" "}
-                  <strong>
-                    {monthUsage} GB / {planLimit} GB
-                  </strong>
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={3}>
-                <Typography variant="body1">
-                  Days Remaining:{" "}
-                  <strong>{daysRemaining} days</strong>
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={3}>
-                <Typography variant="body1">
-                  Service Status:{" "}
-                  <strong
-                    style={{
-                      color: serviceStatus === "Active" ? "green" : "red",
-                    }}
-                  >
-                    {serviceStatus}
-                  </strong>
-                </Typography>
-              </Grid>
-            </Grid>
-            <Box mt={3}>
-              <Typography variant="body2" sx={{ mb: 1 }}>
-                Monthly Usage Progress
-              </Typography>
-              <LinearProgress
-                variant="determinate"
-                value={(monthUsage / planLimit) * 100}
-                sx={{
-                  height: 12,
-                  borderRadius: 6,
-                  background: "#e0e0e0",
-                  "& .MuiLinearProgress-bar": {
-                    background: "linear-gradient(90deg, #4facfe, #00f2fe)",
-                  },
-                }}
-              />
-            </Box>
+            <Typography variant="body1">
+              Today’s Usage: <strong>{todayUsage} GB</strong>
+            </Typography>
+            <Typography variant="body1">
+              This Month: <strong>{monthUsage} GB / {planLimit} GB</strong>
+            </Typography>
+            <LinearProgress
+              variant="determinate"
+              value={(monthUsage / planLimit) * 100}
+              sx={{
+                height: 12,
+                borderRadius: 5,
+                mt: 2,
+                mb: 2,
+                "& .MuiLinearProgress-bar": {
+                  background: "linear-gradient(90deg, #4facfe, #00f2fe)"
+                }
+              }}
+            />
+            <Typography variant="body1" color="text.secondary">
+              Remaining Days in Cycle: <strong>{daysRemaining}</strong>
+            </Typography>
           </MotionCard>
         </Grid>
 
-        {/* Payment History */}
+        {/* Service Status */}
         <Grid item xs={12} md={6}>
           <MotionCard>
             <Typography
@@ -326,7 +300,31 @@ export default function UserDashboard() {
               gutterBottom
               sx={{ color: "#4facfe" }}
             >
-              📜 Payment History
+              📡 Service Status
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{
+                color: serviceStatus === "Active" ? "green" : "red",
+                fontWeight: "bold",
+                fontSize: "1.1rem"
+              }}
+            >
+              {serviceStatus}
+            </Typography>
+          </MotionCard>
+        </Grid>
+
+        {/* Payment History */}
+        <Grid item xs={12}>
+          <MotionCard>
+            <Typography
+              variant="h6"
+              fontWeight="bold"
+              gutterBottom
+              sx={{ color: "#4facfe" }}
+            >
+              📑 Payment History
             </Typography>
             <List>
               {paymentHistory.map((p, idx) => (
@@ -341,6 +339,25 @@ export default function UserDashboard() {
                 </React.Fragment>
               ))}
             </List>
+          </MotionCard>
+        </Grid>
+
+        {/* Profile */}
+        <Grid item xs={12} md={6}>
+          <MotionCard>
+            <Typography
+              variant="h6"
+              fontWeight="bold"
+              gutterBottom
+              sx={{ color: "#4facfe" }}
+            >
+              👤 Profile
+            </Typography>
+            <Typography>Email: {auth.currentUser?.email}</Typography>
+            <Typography>Role: {userData?.role || "User"}</Typography>
+            <Typography>Plan: {userData?.plan || "Basic Plan"}</Typography>
+            <Typography>Speed: {userData?.speed || "50 Mbps"}</Typography>
+            <Typography>Validity: {userData?.validity || "30 Days"}</Typography>
           </MotionCard>
         </Grid>
 
@@ -359,41 +376,28 @@ export default function UserDashboard() {
               <Button
                 variant="outlined"
                 fullWidth
-                onClick={() => setOpenTicket(true)}
+                onClick={() => alert("Recharge Soon!")}
               >
-                Raise Complaint
+                Recharge Now
               </Button>
-              <Button variant="outlined" fullWidth>
+              <Button
+                variant="outlined"
+                fullWidth
+                onClick={() => alert("Upgrade Feature Coming!")}
+              >
                 Upgrade Plan
               </Button>
-              <Button variant="outlined" fullWidth>
-                Download Invoice
+              <Button
+                variant="outlined"
+                fullWidth
+                onClick={() => alert("Support Ticket Raised!")}
+              >
+                Raise Complaint
               </Button>
             </Stack>
           </MotionCard>
         </Grid>
       </Grid>
-
-      {/* Raise Complaint Dialog */}
-      <Dialog open={openTicket} onClose={() => setOpenTicket(false)}>
-        <DialogTitle>Raise a Complaint</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            label="Describe your issue"
-            multiline
-            rows={4}
-            value={ticketDesc}
-            onChange={(e) => setTicketDesc(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenTicket(false)}>Cancel</Button>
-          <Button onClick={handleRaiseTicket} variant="contained">
-            Submit
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }

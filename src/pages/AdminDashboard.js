@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { db } from "../firebase";
+import { db, auth } from "../firebase";
+import { signOut } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
+
 import {
   collection,
   getDocs,
@@ -37,7 +40,15 @@ export default function AdminDashboard() {
   const [connectionRequests, setConnectionRequests] = useState([]);
   const [tickets, setTickets] = useState([]);
 
-  // Demo payments (can integrate later with Firestore if needed)
+  const navigate = useNavigate();
+
+  // Logout
+  const handleLogout = async () => {
+    await signOut(auth);
+    navigate("/login");
+  };
+
+  // Demo payments
   const payments = [
     { user: "Aditya", date: "01 Aug 2025", amount: "₹500", mode: "UPI" },
     { user: "Neha", date: "01 Jul 2025", amount: "₹700", mode: "Card" },
@@ -45,13 +56,13 @@ export default function AdminDashboard() {
 
   // Stats
   const stats = {
-    totalUsers: 10, // Demo
-    activeUsers: 7, // Demo
+    totalUsers: 10,
+    activeUsers: 7,
     pendingRequests: connectionRequests.filter((r) => r.status === "Pending").length,
     revenue: payments.reduce((acc, p) => acc + parseInt(p.amount.replace("₹", "")), 0),
   };
 
-  // --- Firestore Functions ---
+  // Firestore functions...
   const getNotices = async () => {
     const snapshot = await getDocs(collection(db, "notices"));
     setNotices(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
@@ -99,7 +110,6 @@ export default function AdminDashboard() {
     getTickets();
   }, []);
 
-  // Motion variant
   const MotionCard = ({ children }) => (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -164,6 +174,21 @@ export default function AdminDashboard() {
         <Typography variant="subtitle1" sx={{ opacity: 0.9 }}>
           Manage users, notices, payments & requests 📊
         </Typography>
+
+        {/* Logout Button */}
+        <Button
+          onClick={handleLogout}
+          variant="contained"
+          sx={{
+            mt: 2,
+            background: "white",
+            color: "#667eea",
+            fontWeight: "bold",
+            "&:hover": { background: "#ede7f6" },
+          }}
+        >
+          Logout
+        </Button>
       </Paper>
 
       {/* Stats */}
