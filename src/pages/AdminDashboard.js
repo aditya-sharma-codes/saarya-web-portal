@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { db, auth } from "../firebase";
+import { db } from "../firebase";
 import {
   collection,
   getDocs,
   addDoc,
   deleteDoc,
   updateDoc,
-  doc
+  doc,
 } from "firebase/firestore";
 import {
   Box,
@@ -23,7 +23,7 @@ import {
   Avatar,
   Paper,
   Stack,
-  IconButton
+  IconButton,
 } from "@mui/material";
 import { motion } from "framer-motion";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -33,37 +33,28 @@ export default function AdminDashboard() {
   const [notices, setNotices] = useState([]);
   const [newNotice, setNewNotice] = useState("");
   const [editNoticeId, setEditNoticeId] = useState(null);
-  const [loading, setLoading] = useState(true);
 
-  // Demo data for users, payments, requests
-  const users = [
-    { name: "Aditya", email: "aditya@test.com", role: "user", plan: "Basic", status: "Active" },
-    { name: "Neha", email: "neha@test.com", role: "user", plan: "Premium", status: "Suspended" },
-    { name: "Rohan", email: "rohan@test.com", role: "admin", plan: "-", status: "Active" }
-  ];
+  const [connectionRequests, setConnectionRequests] = useState([]);
+  const [tickets, setTickets] = useState([]);
 
-  const connectionRequests = [
-    { name: "Suresh", email: "suresh@gmail.com", plan: "Basic Plan", status: "Pending" },
-    { name: "Aditi", email: "aditi@gmail.com", plan: "Premium Plan", status: "Approved" }
-  ];
-
+  // Demo payments (can integrate later with Firestore if needed)
   const payments = [
     { user: "Aditya", date: "01 Aug 2025", amount: "₹500", mode: "UPI" },
-    { user: "Neha", date: "01 Jul 2025", amount: "₹700", mode: "Card" }
+    { user: "Neha", date: "01 Jul 2025", amount: "₹700", mode: "Card" },
   ];
 
   // Stats
   const stats = {
-    totalUsers: users.length,
-    activeUsers: users.filter(u => u.status === "Active").length,
-    pendingRequests: connectionRequests.filter(r => r.status === "Pending").length,
-    revenue: payments.reduce((acc, p) => acc + parseInt(p.amount.replace("₹", "")), 0)
+    totalUsers: 10, // Demo
+    activeUsers: 7, // Demo
+    pendingRequests: connectionRequests.filter((r) => r.status === "Pending").length,
+    revenue: payments.reduce((acc, p) => acc + parseInt(p.amount.replace("₹", "")), 0),
   };
 
+  // --- Firestore Functions ---
   const getNotices = async () => {
     const snapshot = await getDocs(collection(db, "notices"));
     setNotices(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-    setLoading(false);
   };
 
   const addOrUpdateNotice = async () => {
@@ -72,7 +63,10 @@ export default function AdminDashboard() {
         await updateDoc(doc(db, "notices", editNoticeId), { text: newNotice });
         setEditNoticeId(null);
       } else {
-        await addDoc(collection(db, "notices"), { text: newNotice, createdAt: new Date() });
+        await addDoc(collection(db, "notices"), {
+          text: newNotice,
+          createdAt: new Date(),
+        });
       }
       setNewNotice("");
       getNotices();
@@ -84,8 +78,25 @@ export default function AdminDashboard() {
     getNotices();
   };
 
+  const getConnectionRequests = async () => {
+    const snapshot = await getDocs(collection(db, "connectionRequests"));
+    setConnectionRequests(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+  };
+
+  const updateRequestStatus = async (id, status) => {
+    await updateDoc(doc(db, "connectionRequests", id), { status });
+    getConnectionRequests();
+  };
+
+  const getTickets = async () => {
+    const snapshot = await getDocs(collection(db, "tickets"));
+    setTickets(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+  };
+
   useEffect(() => {
     getNotices();
+    getConnectionRequests();
+    getTickets();
   }, []);
 
   // Motion variant
@@ -103,8 +114,8 @@ export default function AdminDashboard() {
           borderRadius: 4,
           transition: "box-shadow 0.3s ease",
           "&:hover": {
-            boxShadow: "0px 10px 30px rgba(0,0,0,0.25)"
-          }
+            boxShadow: "0px 10px 30px rgba(0,0,0,0.25)",
+          },
         }}
       >
         <CardContent>{children}</CardContent>
@@ -117,7 +128,7 @@ export default function AdminDashboard() {
       sx={{
         minHeight: "100vh",
         background: "linear-gradient(135deg, #ece9e6 0%, #ffffff 100%)",
-        p: { xs: 2, md: 4 }
+        p: { xs: 2, md: 4 },
       }}
     >
       {/* Header */}
@@ -130,7 +141,7 @@ export default function AdminDashboard() {
           textAlign: "center",
           background: "linear-gradient(135deg, #667eea, #764ba2)",
           color: "white",
-          boxShadow: "0px 8px 20px rgba(0,0,0,0.2)"
+          boxShadow: "0px 8px 20px rgba(0,0,0,0.2)",
         }}
       >
         <Avatar
@@ -142,7 +153,7 @@ export default function AdminDashboard() {
             fontSize: "2.5rem",
             mx: "auto",
             mb: 2,
-            fontWeight: "bold"
+            fontWeight: "bold",
           }}
         >
           A
@@ -208,7 +219,12 @@ export default function AdminDashboard() {
                   <ListItem
                     secondaryAction={
                       <>
-                        <IconButton onClick={() => { setNewNotice(n.text); setEditNoticeId(n.id); }}>
+                        <IconButton
+                          onClick={() => {
+                            setNewNotice(n.text);
+                            setEditNoticeId(n.id);
+                          }}
+                        >
                           <EditIcon />
                         </IconButton>
                         <IconButton onClick={() => deleteNotice(n.id)}>
@@ -226,19 +242,37 @@ export default function AdminDashboard() {
           </MotionCard>
         </Grid>
 
-        {/* Users */}
+        {/* Connection Requests */}
         <Grid item xs={12} md={6}>
           <MotionCard>
             <Typography variant="h6" fontWeight="bold" sx={{ color: "#667eea" }}>
-              👥 Users
+              📩 Connection Requests
             </Typography>
             <List>
-              {users.map((u, idx) => (
-                <React.Fragment key={idx}>
-                  <ListItem>
+              {connectionRequests.map((r) => (
+                <React.Fragment key={r.id}>
+                  <ListItem
+                    secondaryAction={
+                      <>
+                        <Button
+                          size="small"
+                          onClick={() => updateRequestStatus(r.id, "Approved")}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="small"
+                          color="error"
+                          onClick={() => updateRequestStatus(r.id, "Rejected")}
+                        >
+                          Reject
+                        </Button>
+                      </>
+                    }
+                  >
                     <ListItemText
-                      primary={`${u.name} (${u.role})`}
-                      secondary={`${u.email} | ${u.plan} | ${u.status}`}
+                      primary={`${r.name} - ${r.plan}`}
+                      secondary={`${r.email} | Status: ${r.status}`}
                     />
                   </ListItem>
                   <Divider />
@@ -248,24 +282,28 @@ export default function AdminDashboard() {
           </MotionCard>
         </Grid>
 
-        {/* Connection Requests */}
+        {/* Support Tickets */}
         <Grid item xs={12} md={6}>
           <MotionCard>
             <Typography variant="h6" fontWeight="bold" sx={{ color: "#667eea" }}>
-              📩 Connection Requests
+              🛠️ Support Tickets
             </Typography>
             <List>
-              {connectionRequests.map((r, idx) => (
-                <React.Fragment key={idx}>
-                  <ListItem>
-                    <ListItemText
-                      primary={`${r.name} - ${r.plan}`}
-                      secondary={`${r.email} | Status: ${r.status}`}
-                    />
-                  </ListItem>
-                  <Divider />
-                </React.Fragment>
-              ))}
+              {tickets.length > 0 ? (
+                tickets.map((t) => (
+                  <React.Fragment key={t.id}>
+                    <ListItem>
+                      <ListItemText
+                        primary={`${t.user} - ${t.issue}`}
+                        secondary={`Status: ${t.status || "Pending"}`}
+                      />
+                    </ListItem>
+                    <Divider />
+                  </React.Fragment>
+                ))
+              ) : (
+                <Typography color="text.secondary">No tickets yet</Typography>
+              )}
             </List>
           </MotionCard>
         </Grid>

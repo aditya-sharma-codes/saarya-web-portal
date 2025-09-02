@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
-import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+  addDoc,
+} from "firebase/firestore";
 import {
   Box,
   Typography,
@@ -16,7 +22,12 @@ import {
   Avatar,
   Paper,
   LinearProgress,
-  Stack
+  Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  TextField,
+  DialogActions,
 } from "@mui/material";
 import { motion } from "framer-motion";
 
@@ -25,17 +36,20 @@ export default function UserDashboard() {
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
 
-  // Demo values (replace with Firestore if available)
+  const [openTicket, setOpenTicket] = useState(false);
+  const [ticketDesc, setTicketDesc] = useState("");
+
+  // Demo values
   const todayUsage = 1.5; // GB
   const monthUsage = 85; // GB
   const planLimit = 100; // GB
   const daysRemaining = 12;
-  const serviceStatus = "Active"; // Active / Suspended / Renewal Due
+  const serviceStatus = "Active";
 
   const paymentHistory = [
     { date: "01 Aug 2025", amount: "₹500", mode: "UPI" },
     { date: "01 Jul 2025", amount: "₹500", mode: "Card" },
-    { date: "01 Jun 2025", amount: "₹500", mode: "Cash" }
+    { date: "01 Jun 2025", amount: "₹500", mode: "Cash" },
   ];
 
   const getNotices = async () => {
@@ -54,18 +68,29 @@ export default function UserDashboard() {
     }
   };
 
+  const handleRaiseTicket = async () => {
+    if (!ticketDesc.trim()) return;
+    await addDoc(collection(db, "tickets"), {
+      user: userData?.name || auth.currentUser?.email,
+      issue: ticketDesc,
+      status: "Pending",
+      createdAt: new Date(),
+    });
+    setTicketDesc("");
+    setOpenTicket(false);
+    alert("Ticket submitted successfully!");
+  };
+
   useEffect(() => {
     getNotices();
     getUserData();
   }, []);
 
-  // Motion variant for cards
   const cardVariant = {
     hidden: { opacity: 0, y: 30 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
   };
 
-  // Reusable motion wrapper for cards
   const MotionCard = ({ children }) => (
     <motion.div
       variants={cardVariant}
@@ -81,8 +106,8 @@ export default function UserDashboard() {
           borderRadius: 4,
           transition: "box-shadow 0.3s ease",
           "&:hover": {
-            boxShadow: "0px 10px 30px rgba(0,0,0,0.25)"
-          }
+            boxShadow: "0px 10px 30px rgba(0,0,0,0.25)",
+          },
         }}
       >
         <CardContent>{children}</CardContent>
@@ -95,7 +120,7 @@ export default function UserDashboard() {
       sx={{
         minHeight: "100vh",
         background: "linear-gradient(135deg, #eef2f3 0%, #cfd9df 100%)",
-        p: { xs: 2, md: 4 }
+        p: { xs: 2, md: 4 },
       }}
     >
       {/* Header */}
@@ -112,7 +137,7 @@ export default function UserDashboard() {
             textAlign: "center",
             background: "linear-gradient(135deg, #4facfe, #00f2fe)",
             color: "white",
-            boxShadow: "0px 8px 20px rgba(0,0,0,0.2)"
+            boxShadow: "0px 8px 20px rgba(0,0,0,0.2)",
           }}
         >
           <Avatar
@@ -125,7 +150,7 @@ export default function UserDashboard() {
               mx: "auto",
               mb: 2,
               fontWeight: "bold",
-              boxShadow: "0px 4px 12px rgba(0,0,0,0.2)"
+              boxShadow: "0px 4px 12px rgba(0,0,0,0.2)",
             }}
           >
             {auth.currentUser?.email[0].toUpperCase()}
@@ -211,18 +236,24 @@ export default function UserDashboard() {
                 fontSize: "1rem",
                 boxShadow: "0px 4px 10px rgba(0,0,0,0.2)",
                 "&:hover": {
-                  background: "linear-gradient(90deg, #00f2fe, #4facfe)"
-                }
+                  background: "linear-gradient(90deg, #00f2fe, #4facfe)",
+                },
               }}
               onClick={() => alert("Payment Gateway Integration Pending")}
             >
               Pay Now
             </Button>
+            <Typography
+              variant="subtitle2"
+              sx={{ mt: 2, color: "text.secondary" }}
+            >
+              Last Payment: 01 Aug 2025 (UPI)
+            </Typography>
           </MotionCard>
         </Grid>
 
-        {/* Data Usage */}
-        <Grid item xs={12} md={6}>
+        {/* Usage Info */}
+        <Grid item xs={12}>
           <MotionCard>
             <Typography
               variant="h6"
@@ -232,32 +263,61 @@ export default function UserDashboard() {
             >
               📊 Data Usage
             </Typography>
-            <Typography variant="body1">
-              Today’s Usage: <strong>{todayUsage} GB</strong>
-            </Typography>
-            <Typography variant="body1">
-              This Month: <strong>{monthUsage} GB / {planLimit} GB</strong>
-            </Typography>
-            <LinearProgress
-              variant="determinate"
-              value={(monthUsage / planLimit) * 100}
-              sx={{
-                height: 12,
-                borderRadius: 5,
-                mt: 2,
-                mb: 2,
-                "& .MuiLinearProgress-bar": {
-                  background: "linear-gradient(90deg, #4facfe, #00f2fe)"
-                }
-              }}
-            />
-            <Typography variant="body1" color="text.secondary">
-              Remaining Days in Cycle: <strong>{daysRemaining}</strong>
-            </Typography>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={3}>
+                <Typography variant="body1">
+                  Today’s Usage:{" "}
+                  <strong>{todayUsage} GB</strong>
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Typography variant="body1">
+                  Monthly Usage:{" "}
+                  <strong>
+                    {monthUsage} GB / {planLimit} GB
+                  </strong>
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Typography variant="body1">
+                  Days Remaining:{" "}
+                  <strong>{daysRemaining} days</strong>
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Typography variant="body1">
+                  Service Status:{" "}
+                  <strong
+                    style={{
+                      color: serviceStatus === "Active" ? "green" : "red",
+                    }}
+                  >
+                    {serviceStatus}
+                  </strong>
+                </Typography>
+              </Grid>
+            </Grid>
+            <Box mt={3}>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                Monthly Usage Progress
+              </Typography>
+              <LinearProgress
+                variant="determinate"
+                value={(monthUsage / planLimit) * 100}
+                sx={{
+                  height: 12,
+                  borderRadius: 6,
+                  background: "#e0e0e0",
+                  "& .MuiLinearProgress-bar": {
+                    background: "linear-gradient(90deg, #4facfe, #00f2fe)",
+                  },
+                }}
+              />
+            </Box>
           </MotionCard>
         </Grid>
 
-        {/* Service Status */}
+        {/* Payment History */}
         <Grid item xs={12} md={6}>
           <MotionCard>
             <Typography
@@ -266,31 +326,7 @@ export default function UserDashboard() {
               gutterBottom
               sx={{ color: "#4facfe" }}
             >
-              📡 Service Status
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                color: serviceStatus === "Active" ? "green" : "red",
-                fontWeight: "bold",
-                fontSize: "1.1rem"
-              }}
-            >
-              {serviceStatus}
-            </Typography>
-          </MotionCard>
-        </Grid>
-
-        {/* Payment History */}
-        <Grid item xs={12}>
-          <MotionCard>
-            <Typography
-              variant="h6"
-              fontWeight="bold"
-              gutterBottom
-              sx={{ color: "#4facfe" }}
-            >
-              📑 Payment History
+              📜 Payment History
             </Typography>
             <List>
               {paymentHistory.map((p, idx) => (
@@ -305,25 +341,6 @@ export default function UserDashboard() {
                 </React.Fragment>
               ))}
             </List>
-          </MotionCard>
-        </Grid>
-
-        {/* Profile */}
-        <Grid item xs={12} md={6}>
-          <MotionCard>
-            <Typography
-              variant="h6"
-              fontWeight="bold"
-              gutterBottom
-              sx={{ color: "#4facfe" }}
-            >
-              👤 Profile
-            </Typography>
-            <Typography>Email: {auth.currentUser?.email}</Typography>
-            <Typography>Role: {userData?.role || "User"}</Typography>
-            <Typography>Plan: {userData?.plan || "Basic Plan"}</Typography>
-            <Typography>Speed: {userData?.speed || "50 Mbps"}</Typography>
-            <Typography>Validity: {userData?.validity || "30 Days"}</Typography>
           </MotionCard>
         </Grid>
 
@@ -342,28 +359,41 @@ export default function UserDashboard() {
               <Button
                 variant="outlined"
                 fullWidth
-                onClick={() => alert("Recharge Soon!")}
-              >
-                Recharge Now
-              </Button>
-              <Button
-                variant="outlined"
-                fullWidth
-                onClick={() => alert("Upgrade Feature Coming!")}
-              >
-                Upgrade Plan
-              </Button>
-              <Button
-                variant="outlined"
-                fullWidth
-                onClick={() => alert("Support Ticket Raised!")}
+                onClick={() => setOpenTicket(true)}
               >
                 Raise Complaint
+              </Button>
+              <Button variant="outlined" fullWidth>
+                Upgrade Plan
+              </Button>
+              <Button variant="outlined" fullWidth>
+                Download Invoice
               </Button>
             </Stack>
           </MotionCard>
         </Grid>
       </Grid>
+
+      {/* Raise Complaint Dialog */}
+      <Dialog open={openTicket} onClose={() => setOpenTicket(false)}>
+        <DialogTitle>Raise a Complaint</DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            label="Describe your issue"
+            multiline
+            rows={4}
+            value={ticketDesc}
+            onChange={(e) => setTicketDesc(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenTicket(false)}>Cancel</Button>
+          <Button onClick={handleRaiseTicket} variant="contained">
+            Submit
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

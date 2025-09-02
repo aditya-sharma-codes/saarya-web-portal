@@ -11,9 +11,11 @@ import {
   TextField,
   Container,
   Paper,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { motion } from "framer-motion";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
 
@@ -26,6 +28,7 @@ export default function LandingPage() {
     address: "",
     plan: "",
   });
+  const [snack, setSnack] = useState({ open: false, msg: "", type: "success" });
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -33,20 +36,40 @@ export default function LandingPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await addDoc(collection(db, "connectionRequests"), {
-      ...formData,
-      status: "Pending",
-      createdAt: new Date(),
-    });
-    alert("Request submitted successfully!");
-    setFormData({ name: "", email: "", phone: "", address: "", plan: "" });
+    try {
+      await addDoc(collection(db, "connectionRequests"), {
+        ...formData,
+        status: "Pending",
+        createdAt: serverTimestamp(),
+      });
+      setFormData({ name: "", email: "", phone: "", address: "", plan: "" });
+      setSnack({ open: true, msg: "Request submitted successfully!", type: "success" });
+    } catch (err) {
+      setSnack({ open: true, msg: err.message, type: "error" });
+    }
   };
 
   return (
     <Box sx={{ backgroundColor: "#f9f9f9" }}>
-      {/* Hero Section */}
-      <Box className="aurora-bg" sx={{ color: "white", textAlign: "center", p: 4 }}>
-        <Container>
+      {/* Hero Section with Motion Gradient */}
+      <Box
+        className="aurora-bg"
+        sx={{
+          position: "relative",
+          color: "white",
+          textAlign: "center",
+          p: 6,
+          overflow: "hidden",
+        }}
+      >
+        {/* Animated background */}
+        <motion.div
+          className="aurora-gradient"
+          initial={{ backgroundPosition: "0% 50%" }}
+          animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
+          transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+        />
+        <Container sx={{ position: "relative", zIndex: 2 }}>
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
@@ -221,6 +244,21 @@ export default function LandingPage() {
           </Box>
         </Paper>
       </Container>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={() => setSnack({ ...snack, open: false })}
+      >
+        <Alert
+          severity={snack.type}
+          onClose={() => setSnack({ ...snack, open: false })}
+          sx={{ width: "100%" }}
+        >
+          {snack.msg}
+        </Alert>
+      </Snackbar>
 
       {/* Footer */}
       <Box sx={{ background: "#333", color: "white", p: 3, textAlign: "center" }}>
