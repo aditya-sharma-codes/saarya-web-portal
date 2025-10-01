@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { auth, db } from "../firebase";
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
@@ -30,8 +30,11 @@ import {
   DialogContent,
   TextField,
   DialogActions,
+  IconButton,
 } from "@mui/material";
 import { motion } from "framer-motion";
+import ChatIcon from "@mui/icons-material/Chat";
+import CloseIcon from "@mui/icons-material/Close";
 
 export default function UserDashboard() {
   const [notices, setNotices] = useState([]);
@@ -40,6 +43,14 @@ export default function UserDashboard() {
 
   const [openTicket, setOpenTicket] = useState(false);
   const [ticketDesc, setTicketDesc] = useState("");
+
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([
+    { from: "bot", text: "Hi! 👋 I'm your assistant. Ask me about plans, billing, or usage." }
+  ]);
+  const [chatInput, setChatInput] = useState("");
+  const [botTyping, setBotTyping] = useState(false);
+  const chatEndRef = useRef(null);
 
   const navigate = useNavigate();
 
@@ -90,10 +101,64 @@ export default function UserDashboard() {
     navigate("/login");
   };
 
+  const handleChatSend = () => {
+    if (!chatInput.trim()) return;
+    const newMessage = { from: "user", text: chatInput };
+    setChatMessages((prev) => [...prev, newMessage]);
+
+    let reply = "Sorry, I didn’t understand that. 🙏";
+    const lower = chatInput.toLowerCase();
+
+    // FAQ Responses
+    if (lower.includes("plan") || lower.includes("price")) {
+      reply = "📦 Our internet plans:\n• Basic: ₹399/month, 30 Mbps\n• Standard: ₹599/month, 75 Mbps\n• Premium: ₹999/month, 150 Mbps 🚀";
+    } else if (lower.includes("bill") || lower.includes("payment")) {
+      reply = "💳 Your last bill was ₹500, due on 1st Aug. You can pay via UPI, Card, or NetBanking.";
+    } else if (lower.includes("usage") || lower.includes("data")) {
+      reply = `📊 You’ve used ${monthUsage} GB of ${planLimit} GB this month. Today’s usage: ${todayUsage} GB.`;
+    } else if (lower.includes("complaint") || lower.includes("support")) {
+      reply = "🛠 You can raise a complaint under 'Quick Actions' → 'Raise Complaint'. Our team will assist you soon.";
+    } else if (lower.includes("logout")) {
+      reply = "🔒 To logout, click the Logout button on the top of your dashboard.";
+    }
+
+    // Smart Recommendation
+    else if (lower.includes("recommend") || lower.includes("best plan") || lower.includes("suggest")) {
+      if (monthUsage > 80) {
+        reply = "⚡ Based on your high usage, we recommend the *Premium Plan* (₹999/month, 150 Mbps, 200GB FUP).";
+      } else if (monthUsage > 40) {
+        reply = "✅ You’d do well with our *Standard Plan* (₹599/month, 75 Mbps, 100GB FUP).";
+      } else {
+        reply = "👌 Our *Basic Plan* (₹399/month, 30 Mbps, 50GB FUP) should be perfect for your needs.";
+      }
+    }
+
+    // Small Talk
+    else if (["hi", "hello", "hey"].some((g) => lower.includes(g))) {
+      reply = "👋 Hello! How can I help you today? (Ask about plans, bills, usage, or recommendations)";
+    } else if (lower.includes("thank")) {
+      reply = "🙏 You’re welcome! Happy to assist.";
+    }
+
+    // Typing simulation
+    setBotTyping(true);
+    setTimeout(() => {
+      setChatMessages((prev) => [...prev, { from: "bot", text: reply }]);
+      setBotTyping(false);
+    }, 1200);
+
+    setChatInput("");
+  };
+
   useEffect(() => {
     getNotices();
     getUserData();
   }, []);
+
+  // Auto scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, botTyping]);
 
   const cardVariant = {
     hidden: { opacity: 0, y: 30 },
@@ -103,7 +168,7 @@ export default function UserDashboard() {
   const MotionCard = ({ children }) => (
     <motion.div
       variants={cardVariant}
-      initial="hidden"
+      initial={false}
       animate="visible"
       whileHover={{ scale: 1.03 }}
       whileTap={{ scale: 0.98 }}
@@ -114,9 +179,7 @@ export default function UserDashboard() {
         sx={{
           borderRadius: 4,
           transition: "box-shadow 0.3s ease",
-          "&:hover": {
-            boxShadow: "0px 10px 30px rgba(0,0,0,0.25)",
-          },
+          "&:hover": { boxShadow: "0px 10px 30px rgba(0,0,0,0.25)" },
         }}
       >
         <CardContent>{children}</CardContent>
@@ -167,9 +230,21 @@ export default function UserDashboard() {
           <Typography variant="h4" fontWeight="bold">
             Welcome, {userData?.name || auth.currentUser?.email}
           </Typography>
-          <Typography variant="subtitle1" sx={{ opacity: 0.9 }}>
+          <Typography variant="subtitle1" sx={{ opacity: 0.9, mb: 2 }}>
             Manage your account, track usage, pay bills & stay connected 🚀
           </Typography>
+          <Button
+            variant="contained"
+            onClick={handleLogout}
+            sx={{
+              background: "white",
+              color: "#4facfe",
+              fontWeight: "bold",
+              "&:hover": { background: "#f5f5f5" }
+            }}
+          >
+            Logout
+          </Button>
         </Paper>
       </motion.div>
 
@@ -178,12 +253,7 @@ export default function UserDashboard() {
         {/* Notices */}
         <Grid item xs={12} md={6}>
           <MotionCard>
-            <Typography
-              variant="h6"
-              fontWeight="bold"
-              gutterBottom
-              sx={{ color: "#4facfe" }}
-            >
+            <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "#4facfe" }}>
               📢 Latest Notices
             </Typography>
             {loading ? (
@@ -210,9 +280,7 @@ export default function UserDashboard() {
                 ))}
               </List>
             ) : (
-              <Typography color="text.secondary">
-                No notices available
-              </Typography>
+              <Typography color="text.secondary">No notices available</Typography>
             )}
           </MotionCard>
         </Grid>
@@ -220,18 +288,11 @@ export default function UserDashboard() {
         {/* Billing */}
         <Grid item xs={12} md={6}>
           <MotionCard>
-            <Typography
-              variant="h6"
-              fontWeight="bold"
-              gutterBottom
-              sx={{ color: "#4facfe" }}
-            >
+            <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "#4facfe" }}>
               💳 Billing
             </Typography>
             <Typography variant="body1" sx={{ mb: 2 }}>
-              Current Bill:{" "}
-              <strong style={{ color: "#333", fontSize: "1.1rem" }}>₹500</strong>{" "}
-              (Demo)
+              Current Bill: <strong style={{ color: "#333", fontSize: "1.1rem" }}>₹500</strong> (Demo)
             </Typography>
             <Button
               variant="contained"
@@ -244,9 +305,7 @@ export default function UserDashboard() {
                 textTransform: "none",
                 fontSize: "1rem",
                 boxShadow: "0px 4px 10px rgba(0,0,0,0.2)",
-                "&:hover": {
-                  background: "linear-gradient(90deg, #00f2fe, #4facfe)"
-                }
+                "&:hover": { background: "linear-gradient(90deg, #00f2fe, #4facfe)" }
               }}
               onClick={() => alert("Payment Gateway Integration Pending")}
             >
@@ -258,12 +317,7 @@ export default function UserDashboard() {
         {/* Data Usage */}
         <Grid item xs={12} md={6}>
           <MotionCard>
-            <Typography
-              variant="h6"
-              fontWeight="bold"
-              gutterBottom
-              sx={{ color: "#4facfe" }}
-            >
+            <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "#4facfe" }}>
               📊 Data Usage
             </Typography>
             <Typography variant="body1">
@@ -294,12 +348,7 @@ export default function UserDashboard() {
         {/* Service Status */}
         <Grid item xs={12} md={6}>
           <MotionCard>
-            <Typography
-              variant="h6"
-              fontWeight="bold"
-              gutterBottom
-              sx={{ color: "#4facfe" }}
-            >
+            <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "#4facfe" }}>
               📡 Service Status
             </Typography>
             <Typography
@@ -318,22 +367,14 @@ export default function UserDashboard() {
         {/* Payment History */}
         <Grid item xs={12}>
           <MotionCard>
-            <Typography
-              variant="h6"
-              fontWeight="bold"
-              gutterBottom
-              sx={{ color: "#4facfe" }}
-            >
+            <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "#4facfe" }}>
               📑 Payment History
             </Typography>
             <List>
               {paymentHistory.map((p, idx) => (
                 <React.Fragment key={idx}>
                   <ListItem>
-                    <ListItemText
-                      primary={`${p.date} - ${p.amount}`}
-                      secondary={`Mode: ${p.mode}`}
-                    />
+                    <ListItemText primary={`${p.date} - ${p.amount}`} secondary={`Mode: ${p.mode}`} />
                   </ListItem>
                   <Divider />
                 </React.Fragment>
@@ -345,12 +386,7 @@ export default function UserDashboard() {
         {/* Profile */}
         <Grid item xs={12} md={6}>
           <MotionCard>
-            <Typography
-              variant="h6"
-              fontWeight="bold"
-              gutterBottom
-              sx={{ color: "#4facfe" }}
-            >
+            <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "#4facfe" }}>
               👤 Profile
             </Typography>
             <Typography>Email: {auth.currentUser?.email}</Typography>
@@ -364,40 +400,160 @@ export default function UserDashboard() {
         {/* Quick Actions */}
         <Grid item xs={12} md={6}>
           <MotionCard>
-            <Typography
-              variant="h6"
-              fontWeight="bold"
-              gutterBottom
-              sx={{ color: "#4facfe" }}
-            >
+            <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "#4facfe" }}>
               ⚡ Quick Actions
             </Typography>
             <Stack spacing={2}>
-              <Button
-                variant="outlined"
-                fullWidth
-                onClick={() => alert("Recharge Soon!")}
-              >
-                Recharge Now
+              <Button variant="outlined" fullWidth onClick={() => setOpenTicket(true)}>
+                Raise Complaint
               </Button>
-              <Button
-                variant="outlined"
-                fullWidth
-                onClick={() => alert("Upgrade Feature Coming!")}
-              >
+              <Button variant="outlined" fullWidth onClick={() => alert("Upgrade Feature Coming!")}>
                 Upgrade Plan
               </Button>
-              <Button
-                variant="outlined"
-                fullWidth
-                onClick={() => alert("Support Ticket Raised!")}
-              >
-                Raise Complaint
+              <Button variant="outlined" fullWidth onClick={() => alert("Invoice Download Coming!")}>
+                Download Invoice
               </Button>
             </Stack>
           </MotionCard>
         </Grid>
       </Grid>
+
+      {/* Raise Complaint Dialog */}
+      <Dialog open={openTicket} onClose={() => setOpenTicket(false)}>
+        <DialogTitle>Raise a Complaint</DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            label="Describe your issue"
+            multiline
+            rows={4}
+            value={ticketDesc}
+            onChange={(e) => setTicketDesc(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenTicket(false)}>Cancel</Button>
+          <Button onClick={handleRaiseTicket} variant="contained">
+            Submit
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Floating Chatbot */}
+      <Box
+        sx={{
+          position: "fixed",
+          bottom: 20,
+          right: 20,
+          zIndex: 1000,
+        }}
+      >
+        {chatOpen ? (
+          <Paper
+            elevation={6}
+            sx={{
+              width: 300,
+              height: 400,
+              p: 2,
+              borderRadius: 3,
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 1,
+              }}
+            >
+              <Typography variant="h6">💬 Chatbot</Typography>
+              <IconButton size="small" onClick={() => setChatOpen(false)}>
+                <CloseIcon />
+              </IconButton>
+            </Box>
+            <Box
+              sx={{
+                flex: 1,
+                overflowY: "auto",
+                mb: 1,
+              }}
+            >
+              {chatMessages.map((msg, idx) => (
+                <Box
+                  key={idx}
+                  sx={{
+                    textAlign: msg.from === "user" ? "right" : "left",
+                    mb: 1,
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      display: "inline-block",
+                      px: 1.5,
+                      py: 1,
+                      borderRadius: 2,
+                      background:
+                        msg.from === "user"
+                          ? "linear-gradient(90deg, #4facfe, #00f2fe)"
+                          : "#f0f0f0",
+                      color: msg.from === "user" ? "white" : "black",
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    {msg.text}
+                  </Typography>
+                </Box>
+              ))}
+              {botTyping && (
+                <Box sx={{ textAlign: "left", mb: 1 }}>
+                  <Typography
+                    sx={{
+                      display: "inline-block",
+                      px: 1.5,
+                      py: 1,
+                      borderRadius: 2,
+                      background: "#f0f0f0",
+                      color: "black",
+                      fontSize: "0.9rem",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    Typing...
+                  </Typography>
+                </Box>
+              )}
+              <div ref={chatEndRef} />
+            </Box>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <TextField
+                fullWidth
+                size="small"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Ask something..."
+              />
+              <Button variant="contained" onClick={handleChatSend}>
+                Send
+              </Button>
+            </Box>
+          </Paper>
+        ) : (
+          <IconButton
+            onClick={() => setChatOpen(true)}
+            sx={{
+              background: "linear-gradient(90deg, #4facfe, #00f2fe)",
+              color: "white",
+              width: 60,
+              height: 60,
+              "&:hover": { opacity: 0.9 },
+            }}
+          >
+            <ChatIcon />
+          </IconButton>
+        )}
+      </Box>
     </Box>
   );
 }
